@@ -22,7 +22,7 @@ if PANDAS_VERSION >= LooseVersion('0.22'):
 else:
     _PANDAS_ge_022 = False
 
-if PANDAS_VERSION <= LooseVersion('0.23'):
+if PANDAS_VERSION >= LooseVersion('0.23'):
     from pandas.util import Appender, cache_readonly              # noqa
     import pandas.plotting as plotting                            # noqa
     _PANDAS_ge_023 = True
