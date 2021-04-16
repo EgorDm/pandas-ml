@@ -46,3 +46,4 @@ try:
     _IMBLEARN_INSTALLED = True
 except ImportError:
     _IMBLEARN_INSTALLED = False
+

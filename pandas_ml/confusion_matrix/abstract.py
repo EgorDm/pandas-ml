@@ -50,17 +50,22 @@ class ConfusionMatrixAbstract(object):
                 self._y_pred = self._y_pred.map(d)
                 raise(NotImplementedError)  # ToDo: see self.classes and BinaryConfusionMatrix.__class ...
 
+            self._y_true = pd.Categorical(self._y_true, categories=labels)
+            self._y_pred = pd.Categorical(self._y_pred, categories=labels)
+
         N_true = len(y_true)
         N_pred = len(y_pred)
         assert N_true == N_pred, \
             "y_true must have same size - %d != %d" % (N_true, N_pred)
 
-        df = pd.crosstab(self._y_true, self._y_pred)
+        df = pd.crosstab(self._y_true, self._y_pred, dropna=False)
+        df.index = df.index.astype('str')
+        df.columns = df.columns.astype('str')
         idx = self._classes(df)
 
-        if self.is_binary and pdml.compat._PANDAS_ge_021:
-            df = df.reindex([False, True])
-            df = df.reindex([False, True], axis=1)
+        if self.is_binary and pdml.compat._PANDAS_ge_023:
+            df = df.reindex(['False', 'True'])
+            df = df.reindex(['False', 'True'], axis=1)
             df = df.fillna(0)
         else:
             df = df.loc[idx, idx.copy()].fillna(0)  # if some columns or rows are missing
@@ -101,7 +106,7 @@ class ConfusionMatrixAbstract(object):
         """
         if df is None:
             df = self.to_dataframe()
-        idx_classes = (df.columns | df.index).copy()
+        idx_classes = (df.columns.union(df.index)).copy()
         idx_classes.name = 'Classes'
         return(idx_classes)
 
@@ -321,10 +326,8 @@ class ConfusionMatrixAbstract(object):
             d_stats[key] = np.nan
 
         d_prop_test = prop_test(df)
-        d_stats['No Information Rate'] = 'ToDo'  # 0.8
         d_stats['P-Value [Acc > NIR]'] = d_prop_test['p.value']  # 1
         d_stats['Kappa'] = d_class_agreement['kappa']  # 0.078
-        d_stats['Mcnemar\'s Test P-Value'] = 'ToDo'  # np.nan
 
         return(d_stats)
 
@@ -333,18 +336,14 @@ class ConfusionMatrixAbstract(object):
         """
         Returns a DataFrame with class statistics
         """
-        # stats = ['TN', 'FP', 'FN', 'TP']
-        # df = pd.DataFrame(columns=self.classes, index=stats)
-        df = pd.DataFrame(columns=self.classes)
 
-        # ToDo Avoid these for loops
-
+        class_stats = []
         for cls in self.classes:
             binary_cm = self.binarize(cls)
             binary_cm_stats = binary_cm.stats()
-            for key, value in binary_cm_stats.items():
-                df.loc[key, cls] = value  # binary_cm_stats
+            class_stats.append(binary_cm_stats)
 
+        df = pd.DataFrame(class_stats, index=self.classes).transpose()
         d_name = {
             'population': 'Population',
             'P': 'P: Condition positive',
